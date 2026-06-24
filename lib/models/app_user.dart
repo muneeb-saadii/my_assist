@@ -33,7 +33,7 @@ class StaticUsers {
       passkey: '01234568',   // ← replace with secure 8-digit key
       isAdmin: true,
       name: 'Admin User',
-      entity: 'Entity1',
+      entity: 'Saadi',
     ),
     AppUser(
       id: 'user_2',
@@ -41,7 +41,7 @@ class StaticUsers {
       passkey: '87654321',   // ← replace with secure 8-digit key
       isAdmin: false,
       name: 'Regular User',
-      entity: 'Entity2',
+      entity: 'Daniel',
     ),
   ];
 
