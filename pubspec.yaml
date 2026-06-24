@@ -32,6 +32,9 @@ dependencies:
   lottie: ^3.1.2
   permission_handler: ^11.3.1
 
+  # App Icon
+  flutter_launcher_icons: ^0.14.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -39,3 +42,11 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/icon_1024.png"
+  min_sdk_android: 21
+  adaptive_icon_background: "#6C63FF"
+  adaptive_icon_foreground: "assets/icon_1024.png"

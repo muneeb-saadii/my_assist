@@ -1,7 +1,21 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+
+    <!-- Internet — required for Firebase -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- SMS — required for reading messages from 14250 -->
+    <uses-permission android:name="android.permission.READ_SMS" />
+    <uses-permission android:name="android.permission.RECEIVE_SMS" />
+
+    <!-- Required by permission_handler on Android 13+ -->
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+
+
     <application
-        android:label="my_assist"
+        android:label="Spend Sync"
         android:name="${applicationName}"
+        android:usesCleartextTraffic="true"
         android:icon="@mipmap/ic_launcher">
         <activity
             android:name=".MainActivity"

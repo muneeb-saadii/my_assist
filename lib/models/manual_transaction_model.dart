@@ -1,76 +1,72 @@
-class TransactionModel {
+import 'package:my_assist/models/transaction_model.dart';
+
+class ManualTransactionModel {
   final String id;
-  final String rawMessage;
   final String description;
   final String cardEnding;
   final double amount;
   final DateTime date;
   final String merchant;
   final bool isFuel;
-  final bool isManual;
   String? assignedTo;
   String? assignedEntity;
+  final bool isManual = true;
 
-  TransactionModel({
+  ManualTransactionModel({
     required this.id,
-    required this.rawMessage,
     required this.description,
     required this.cardEnding,
     required this.amount,
     required this.date,
     required this.merchant,
     required this.isFuel,
-    this.isManual = false,
     this.assignedTo,
     this.assignedEntity,
   });
 
   Map<String, dynamic> toMap() => {
-        'id': id,
-        'rawMessage': rawMessage,
-        'description': description,
-        'cardEnding': cardEnding,
-        'amount': amount,
-        'date': date.toIso8601String(),
-        'merchant': merchant,
-        'isFuel': isFuel,
-        'isManual': isManual,
-        'assignedTo': assignedTo,
-        'assignedEntity': assignedEntity,
-      };
+    'id': id,
+    'description': description,
+    'cardEnding': cardEnding,
+    'amount': amount,
+    'date': date.toIso8601String(),
+    'merchant': merchant,
+    'isFuel': isFuel,
+    'assignedTo': assignedTo,
+    'assignedEntity': assignedEntity,
+    'isManual': true,
+  };
 
-  factory TransactionModel.fromMap(String id, Map<dynamic, dynamic> map) {
-    return TransactionModel(
+  factory ManualTransactionModel.fromMap(
+      String id, Map<dynamic, dynamic> map) {
+    return ManualTransactionModel(
       id: id,
-      rawMessage: map['rawMessage']?.toString() ?? '',
       description: map['description']?.toString() ?? '',
       cardEnding: map['cardEnding']?.toString() ?? '',
       amount: (map['amount'] ?? 0).toDouble(),
-      date: DateTime.tryParse(map['date']?.toString() ?? '') ?? DateTime.now(),
+      date:
+      DateTime.tryParse(map['date']?.toString() ?? '') ?? DateTime.now(),
       merchant: map['merchant']?.toString() ?? '',
       isFuel: map['isFuel'] == true,
-      isManual: map['isManual'] == true,
       assignedTo: map['assignedTo']?.toString(),
       assignedEntity: map['assignedEntity']?.toString(),
     );
   }
 
-  TransactionModel copyWith({
-    String? assignedTo,
-    String? assignedEntity,
-  }) {
+  // Convert to TransactionModel for unified list display
+  TransactionModel toTransactionModel() {
     return TransactionModel(
       id: id,
-      rawMessage: rawMessage,
+      rawMessage: '[Manual Entry] $merchant — PKR $amount',
       description: description,
       cardEnding: cardEnding,
       amount: amount,
       date: date,
       merchant: merchant,
       isFuel: isFuel,
-      isManual: isManual,
-      assignedTo: assignedTo ?? this.assignedTo,
-      assignedEntity: assignedEntity ?? this.assignedEntity,
+      assignedTo: assignedTo,
+      assignedEntity: assignedEntity,
+      isManual: true,
     );
   }
 }

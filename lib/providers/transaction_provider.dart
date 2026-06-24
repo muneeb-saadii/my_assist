@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide debugPrint;
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter_sms_inbox/flutter_sms_inbox.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -9,6 +9,8 @@ import '../utils/sms_parser.dart';
 
 enum IntervalFilter { all, last, current }
 enum SyncStatus { idle, syncing, synced, offline, error }
+enum SortField { date, amount }
+enum SortOrder { asc, desc }
 
 class TransactionProvider extends ChangeNotifier {
   final _db = FirebaseDatabase.instance.ref('transactions');
@@ -29,6 +31,20 @@ class TransactionProvider extends ChangeNotifier {
   IntervalFilter get intervalFilter => _intervalFilter;
   Set<String> get selectedCards => _selectedCards;
   String get selectedEntity => _selectedEntity;
+
+  final _manualDb = FirebaseDatabase.instance.ref('manual_transactions');
+  SortField _sortField = SortField.date;
+  SortOrder _sortOrder = SortOrder.desc;
+
+  SortField get sortField => _sortField;
+  SortOrder get sortOrder => _sortOrder;
+
+  void setSortField(SortField f) { _sortField = f; notifyListeners(); }
+  void setSortOrder(SortOrder o) { _sortOrder = o; notifyListeners(); }
+  void toggleSortOrder() {
+    _sortOrder = _sortOrder == SortOrder.desc ? SortOrder.asc : SortOrder.desc;
+    notifyListeners();
+  }
 
   void setIntervalFilter(IntervalFilter f) {
     _intervalFilter = f;
@@ -73,6 +89,32 @@ class TransactionProvider extends ChangeNotifier {
 
     final now = DateTime.now();
     if (_intervalFilter == IntervalFilter.current) {
+      // Current: from most recent 20th up to today
+      final from = now.day >= 20
+          ? DateTime(now.year, now.month, 20)
+          : DateTime(now.year, now.month - 1, 20);
+      list = list.where((t) => !t.date.isBefore(from)).toList();
+    } else if (_intervalFilter == IntervalFilter.last) {
+      // Last: from second-last 20th up to last 20th (exclusive)
+      final DateTime lastCutoff;
+      final DateTime prevCutoff;
+      if (now.day >= 20) {
+        // e.g. today is 24 Jun → current starts 20 Jun, last is 20 May–20 Jun
+        lastCutoff = DateTime(now.year, now.month, 20);
+        prevCutoff = DateTime(now.year, now.month - 1, 20);
+      } else {
+        // e.g. today is 10 Jun → current starts 20 May, last is 20 Apr–20 May
+        lastCutoff = DateTime(now.year, now.month - 1, 20);
+        prevCutoff = DateTime(now.year, now.month - 2, 20);
+      }
+      list = list
+          .where((t) =>
+      !t.date.isBefore(prevCutoff) && t.date.isBefore(lastCutoff))
+          .toList();
+    }
+    // IntervalFilter.all — no date restriction
+    /*final now = DateTime.now();
+    if (_intervalFilter == IntervalFilter.current) {
       final from = now.day >= 20
           ? DateTime(now.year, now.month, 20)
           : DateTime(now.year, now.month - 1, 20);
@@ -85,9 +127,18 @@ class TransactionProvider extends ChangeNotifier {
       t.date.isAfter(twoMonthsCutoff) &&
           t.date.isBefore(lastMonthCutoff))
           .toList();
-    }
+    }*/
 
-    list.sort((a, b) => b.date.compareTo(a.date));
+    // list.sort((a, b) => b.date.compareTo(a.date));
+    list.sort((a, b) {
+      int cmp;
+      if (_sortField == SortField.date) {
+        cmp = a.date.compareTo(b.date);
+      } else {
+        cmp = a.amount.compareTo(b.amount);
+      }
+      return _sortOrder == SortOrder.desc ? -cmp : cmp;
+    });
     return list;
   }
 
@@ -106,8 +157,7 @@ class TransactionProvider extends ChangeNotifier {
       list.where((t) => t.isFuel).fold(0, (sum, t) => sum + t.amount);
 
   // ── SMS Sync using flutter_sms_inbox ─────────────────────────────────
-
-  Future<void> syncFromSms() async {
+  Future<void> syncFromSms(AppUser currentUser) async {
     _syncStatus = SyncStatus.syncing;
     notifyListeners();
 
@@ -122,8 +172,8 @@ class TransactionProvider extends ChangeNotifier {
       final query = SmsQuery();
       final messages = await query.querySms(
         kinds: [SmsQueryKind.inbox],
-        address: '14250',         // sender filter
-        count: 500,               // fetch up to 500 messages
+        address: '14250',
+        count: 500,
       );
 
       final parsed = <TransactionModel>[];
@@ -132,23 +182,49 @@ class TransactionProvider extends ChangeNotifier {
         if (!body.toLowerCase().contains('creditcard')) continue;
         final tx = SmsParser.parse(
           body,
-          msg.date?.millisecondsSinceEpoch ?? DateTime.now().millisecondsSinceEpoch,
+          msg.date?.millisecondsSinceEpoch ??
+              DateTime.now().millisecondsSinceEpoch,
         );
         if (tx != null) parsed.add(tx);
       }
 
-      // Upload to Firebase — ID is deterministic so no duplicates
-      for (final tx in parsed) {
-        await _db.child(tx.id).set(tx.toMap());
+      if (parsed.isEmpty) {
+        _syncStatus = SyncStatus.synced;
+        notifyListeners();
+        return;
       }
 
+      // Fetch existing IDs to avoid overwriting already-assigned transactions
+      final snapshot = await _db.get();
+      final existingIds = <String>{};
+      if (snapshot.exists && snapshot.value != null) {
+        final map = snapshot.value as Map<dynamic, dynamic>;
+        existingIds.addAll(map.keys.map((k) => k.toString()));
+      }
+
+      int newCount = 0;
+      for (final tx in parsed) {
+        if (existingIds.contains(tx.id)) {
+          // Already exists — preserve existing assignment
+          continue;
+        }
+
+        // New transaction — auto-assign to whoever is currently syncing
+        final assigned = tx.copyWith(
+          assignedTo: currentUser.id,
+          assignedEntity: currentUser.entity,
+        );
+        await _db.child(assigned.id).set(assigned.toMap());
+        newCount++;
+      }
+
+      debugPrint('Sync complete: $newCount new, ${parsed.length - newCount} skipped (user: ${currentUser.entity})');
       _isOnline = true;
       _syncStatus = SyncStatus.synced;
-      // debugPrint('Synced ${parsed.length} transactions from SMS');
     } catch (e) {
       _isOnline = false;
       _syncStatus = SyncStatus.offline;
-      // debugPrint('SMS sync error: $e');
+      debugPrint('SMS sync error: $e');
     }
 
     notifyListeners();
@@ -157,45 +233,65 @@ class TransactionProvider extends ChangeNotifier {
   // ── Firebase real-time listener ───────────────────────────────────────
 
   StreamSubscription? _sub;
+  StreamSubscription? _manualSub;
 
   void listenToFirebase() {
     _sub?.cancel();
+    _manualSub?.cancel();
+
+    // Listen to SMS transactions
     _sub = _db.onValue.listen(
           (event) {
         final data = event.snapshot.value;
-        if (data == null) {
-          _allTransactions = [];
-          notifyListeners();
-          return;
-        }
-
-        final map = data as Map<dynamic, dynamic>;
-        _allTransactions = map.entries
+        _smsTransactions = data == null
+            ? []
+            : (data as Map<dynamic, dynamic>)
+            .entries
             .map((e) => TransactionModel.fromMap(
             e.key.toString(), e.value as Map<dynamic, dynamic>))
             .toList();
-
-        _availableCards = _allTransactions
-            .map((t) => t.cardEnding)
-            .toSet()
-            .toList()
-          ..sort();
-
-        if (_selectedCards.isEmpty && _availableCards.isNotEmpty) {
-          _selectedCards = Set.from(_availableCards);
-        }
-
-        _isOnline = true;
-        notifyListeners();
+        _mergeAndNotify();
       },
-      onError: (e) {
+      onError: (_) {
         _isOnline = false;
         _syncStatus = SyncStatus.offline;
-        // debugPrint('Firebase listen error: $e');
         notifyListeners();
       },
     );
+
+    // Listen to manual transactions
+    _manualSub = _manualDb.onValue.listen(
+          (event) {
+        final data = event.snapshot.value;
+        _manualTransactions = data == null
+            ? []
+            : (data as Map<dynamic, dynamic>)
+            .entries
+            .map((e) => TransactionModel.fromMap(
+            e.key.toString(), e.value as Map<dynamic, dynamic>))
+            .toList();
+        _mergeAndNotify();
+      },
+    );
   }
+
+  List<TransactionModel> _smsTransactions = [];
+  List<TransactionModel> _manualTransactions = [];
+
+  void _mergeAndNotify() {
+    _allTransactions = [..._smsTransactions, ..._manualTransactions];
+    _availableCards = _allTransactions
+        .map((t) => t.cardEnding)
+        .toSet()
+        .toList()
+      ..sort();
+    if (_selectedCards.isEmpty && _availableCards.isNotEmpty) {
+      _selectedCards = Set.from(_availableCards);
+    }
+    _isOnline = true;
+    notifyListeners();
+  }
+
 
   Future<void> toggleAssign(TransactionModel tx, AppUser user) async {
     final isAssigned = tx.assignedTo == user.id;
@@ -205,9 +301,38 @@ class TransactionProvider extends ChangeNotifier {
     });
   }
 
+  Future<void> addManualTransaction({
+    required String merchant,
+    required String cardEnding,
+    required double amount,
+    required DateTime date,
+    required bool isFuel,
+    required AppUser currentUser,
+  }) async {
+    final id = 'manual_${currentUser.id}_${date.millisecondsSinceEpoch}_${amount.toInt()}';
+    final desc = merchant.length > 30 ? '${merchant.substring(0, 30)}...' : merchant;
+
+    final tx = TransactionModel(
+      id: id,
+      rawMessage: '[Manual Entry]',
+      description: desc,
+      cardEnding: cardEnding,
+      amount: amount,
+      date: date,
+      merchant: merchant,
+      isFuel: isFuel,
+      isManual: true,
+      assignedTo: currentUser.id,
+      assignedEntity: currentUser.entity,
+    );
+
+    await _manualDb.child(id).set(tx.toMap());
+  }
+
   @override
   void dispose() {
     _sub?.cancel();
+    _manualSub?.cancel();
     super.dispose();
   }
 }

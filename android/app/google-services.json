@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "519889309473",
+    "firebase_url": "https://myassist-9fa1f-default-rtdb.firebaseio.com",
+    "project_id": "myassist-9fa1f",
+    "storage_bucket": "myassist-9fa1f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:519889309473:android:ecc754032e06014ab13860",
+        "android_client_info": {
+          "package_name": "com.application.my_assist"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCwyHGVAuaUapM7AK8TfigGyVjLg9gAuSo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

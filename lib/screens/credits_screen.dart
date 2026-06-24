@@ -5,6 +5,7 @@ import '../providers/auth_provider.dart';
 import '../providers/transaction_provider.dart';
 import '../models/transaction_model.dart';
 import '../main.dart';
+import '../widgets/add_transaction_dialog.dart';
 import '../widgets/transaction_detail_dialog.dart';
 import '../widgets/transaction_tile.dart';
 import '../widgets/stats_section.dart';
@@ -27,7 +28,8 @@ class _CreditsScreenState extends State<CreditsScreen> {
   }
 
   Future<void> _sync() async {
-    await context.read<TransactionProvider>().syncFromSms();
+    final user = context.read<AuthProvider>().currentUser!;
+    await context.read<TransactionProvider>().syncFromSms(user);
   }
 
   @override
@@ -164,11 +166,95 @@ class _CreditsScreenState extends State<CreditsScreen> {
                   selectedCards: provider.availableCards
                       .where((c) => provider.selectedCards.contains(c))
                       .toList(),
+                  isAdmin: user.isAdmin,   // ← add this
                 ),
                 const SizedBox(height: 16),
 
                 // ── Transaction list ──────────────────────────────────
-                _SectionLabel('Transactions (${filtered.length})'),
+                // ── Transactions header with add + sort ───────────────
+                Row(
+                  children: [
+                    Expanded(
+                      child: _SectionLabel('Transactions (${filtered.length})'),
+                    ),
+                    // Sort field toggle
+                    GestureDetector(
+                      onTap: () {
+                        final current = provider.sortField;
+                        provider.setSortField(
+                          current == SortField.date ? SortField.amount : SortField.date,
+                        );
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primary.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              provider.sortField == SortField.date
+                                  ? Icons.calendar_today_rounded
+                                  : Icons.attach_money_rounded,
+                              size: 13,
+                              color: AppTheme.primary,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              provider.sortField == SortField.date ? 'Date' : 'Amount',
+                              style: const TextStyle(
+                                  fontSize: 11,
+                                  color: AppTheme.primary,
+                                  fontWeight: FontWeight.w600),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    // Sort order toggle
+                    GestureDetector(
+                      onTap: () => provider.toggleSortOrder(),
+                      child: Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: AppTheme.primary.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          provider.sortOrder == SortOrder.desc
+                              ? Icons.arrow_downward_rounded
+                              : Icons.arrow_upward_rounded,
+                          size: 16,
+                          color: AppTheme.primary,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    // Add manual transaction button
+                    GestureDetector(
+                      onTap: () => showDialog(
+                        context: context,
+                        builder: (_) => const AddTransactionDialog(),
+                      ),
+                      child: Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: AppTheme.success.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.add_rounded,
+                          size: 18,
+                          color: AppTheme.success,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 8),
 
                 if (filtered.isEmpty)
