@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import '../models/app_user.dart';
 import '../providers/auth_provider.dart';
 import '../providers/transaction_provider.dart';
 import '../models/transaction_model.dart';
@@ -112,12 +113,12 @@ class _CreditsScreenState extends State<CreditsScreen> {
                   _SectionLabel('Entity'),
                   const SizedBox(height: 8),
                   ToggleRow(
-                    options: const ['All', 'Entity1', 'Entity2'],
-                    selected: ['all', 'Entity1', 'Entity2']
+                    options: ['All', StaticUsers.users[0].name, StaticUsers.users[1].name],
+                    selected: ['all', StaticUsers.users[0].entity, StaticUsers.users[1].entity]
                         .indexOf(provider.selectedEntity)
                         .clamp(0, 2),
                     onSelect: (i) => provider
-                        .setEntity(['all', 'Entity1', 'Entity2'][i]),
+                        .setEntity(['all', StaticUsers.users[0].entity, StaticUsers.users[1].entity][i]),
                   ),
                   const SizedBox(height: 16),
                 ],

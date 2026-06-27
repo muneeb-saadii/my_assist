@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:my_assist/models/app_user.dart';
 import '../models/transaction_model.dart';
 import '../main.dart';
 
@@ -25,10 +26,10 @@ class StatsSection extends StatelessWidget {
 
     // Entity totals
     final entity1Total = transactions
-        .where((t) => t.assignedEntity == 'Entity1')
+        .where((t) => t.assignedEntity == StaticUsers.users[0].entity)
         .fold<double>(0, (s, t) => s + t.amount);
     final entity2Total = transactions
-        .where((t) => t.assignedEntity == 'Entity2')
+        .where((t) => t.assignedEntity == StaticUsers.users[1].entity)
         .fold<double>(0, (s, t) => s + t.amount);
     final unassignedTotal = transactions
         .where((t) => t.assignedEntity == null)
@@ -67,7 +68,7 @@ class StatsSection extends StatelessWidget {
             children: [
               Expanded(
                 child: _StatCard(
-                  label: 'Entity1 Spend',
+                  label: 'Saadi Spend',
                   value: 'PKR ${fmt.format(entity1Total)}',
                   icon: Icons.person_rounded,
                   color: const Color(0xFF8B5CF6),
@@ -76,7 +77,7 @@ class StatsSection extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: _StatCard(
-                  label: 'Entity2 Spend',
+                  label: 'Daniel Spend',
                   value: 'PKR ${fmt.format(entity2Total)}',
                   icon: Icons.person_outline_rounded,
                   color: const Color(0xFFEC4899),

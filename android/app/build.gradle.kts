@@ -22,7 +22,7 @@ android {
 
     defaultConfig {
         applicationId = "com.application.my_assist"
-        minSdk = 21                          // ← set explicitly, Firebase needs min 21
+        minSdk = flutter.minSdkVersion                          // ← set explicitly, Firebase needs min 21
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

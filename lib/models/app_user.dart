@@ -32,7 +32,7 @@ class StaticUsers {
       phone: '03180538992',  // ← replace with real phone
       passkey: '01234568',   // ← replace with secure 8-digit key
       isAdmin: true,
-      name: 'Admin User',
+      name: 'Muneeb Saadi',
       entity: 'Saadi',
     ),
     AppUser(
@@ -40,7 +40,7 @@ class StaticUsers {
       phone: '03320579747',  // ← replace with real phone
       passkey: '87654321',   // ← replace with secure 8-digit key
       isAdmin: false,
-      name: 'Regular User',
+      name: 'Daniel',
       entity: 'Daniel',
     ),
   ];
